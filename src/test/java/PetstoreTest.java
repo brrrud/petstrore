@@ -57,7 +57,7 @@ public class PetstoreTest {
             "HohoDog, available",
             "Bulldog, sold"
     })
-    void testUpdatePet(String name, String status) {
+    public void testUpdatePet(String name, String status) {
         String updatedRequestBody = """
                 {
                   "id": 0,

@@ -2,52 +2,62 @@ import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.jupiter.api.Assertions.*;
-
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class PetstoreTest {
-    private long petId;
 
     @BeforeAll
     public static void setUp() {
         RestAssured.baseURI = "https://petstore.swagger.io/v2";
     }
 
-    @Test
+    @ParameterizedTest
     @Order(1)
-    public void testCreatePet() {
+    @CsvSource({
+            "doggie1, available",
+            "doggie2, pending",
+            "doggie3, sold"
+    })
+    public void testCreatePet(String petName, String status) {
         String requestBody = """
                 {
                   "id": 0,
-                  "name": "doggie",
-                  "status": "available"
-                }""";
+                  "name": "%s",
+                  "status": "%s"
+                }""".formatted(petName, status);
 
-        Response response = given()
+        given()
                 .contentType(ContentType.JSON)
                 .body(requestBody)
                 .when()
                 .post("/pet")
                 .then()
                 .statusCode(200)
-                .body("name", equalTo("doggie"))
-                .extract()
-                .response();
-
-        petId = response.path("id");
+                .body("name", equalTo(petName))
+                .body("status", equalTo(status));
     }
 
-    @Test
+
+    @ParameterizedTest
     @Order(2)
-    void testUpdatePet() {
+    @CsvSource({
+            "Dog, pending",
+            "HohoDog, available",
+            "Bulldog, sold"
+    })
+    void testUpdatePet(String name, String status) {
         String updatedRequestBody = """
                 {
                   "id": 0,
@@ -55,7 +65,7 @@ public class PetstoreTest {
                     "id": 0,
                     "name": "string"
                   },
-                  "name": "EuroDog",
+                  "name": "%s",
                   "photoUrls": [
                     "string"
                   ],
@@ -65,9 +75,8 @@ public class PetstoreTest {
                       "name": "string"
                     }
                   ],
-                  "status": "pending"
-                }""";
-
+                  "status": "%s"
+                }""".formatted(name, status);
 
         given()
                 .contentType(ContentType.JSON)
@@ -76,17 +85,14 @@ public class PetstoreTest {
                 .put("/pet")
                 .then()
                 .statusCode(200)
-                .body("name", equalTo("EuroDog"))
-                .body("status", equalTo("pending"));
+                .body("name", equalTo(name))
+                .body("status", equalTo(status));
     }
 
-
-    @Test
+    @ParameterizedTest
     @Order(3)
-    void testFindPetsByStatus() {
-        String status = "pending";
-
-
+    @ValueSource(strings = {"pending", "available", "sold"})
+    public void testFindPetsByStatus(String status) {
         Response response = given()
                 .queryParam("status", status)
                 .when()
@@ -96,10 +102,9 @@ public class PetstoreTest {
                 .extract()
                 .response();
 
-
         List<String> statuses = response.jsonPath().getList("status");
         assertFalse(statuses.isEmpty());
-        assertTrue(statuses.stream().allMatch(s -> s.equals("pending")));
+        assertTrue(statuses.stream().allMatch(s -> s.equals(status)));
         System.out.println(statuses);
     }
 
